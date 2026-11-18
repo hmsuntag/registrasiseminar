@@ -48,17 +48,24 @@
 
                 <div class="relative z-10">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[11px] font-bold tracking-wider uppercase">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Formulir Presensi Resmi
-                        </span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[11px] font-bold tracking-wider uppercase">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Formulir Presensi Resmi
+                            </span>
+                            <!-- Indikator Status Koneksi Firebase Realtime Database -->
+                            <span id="db-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-[11px] font-semibold">
+                                <span id="db-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span id="db-status-text">Menghubungkan Cloud...</span>
+                            </span>
+                        </div>
                         <span id="current-time" class="font-mono text-xs text-blue-200 bg-white/10 px-2.5 py-1 rounded-lg">
                             --:--:--
                         </span>
                     </div>
 
                     <h1 class="font-display text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-snug">
-                        SEMINAR KETEKNIKAN:"Strategi Infrastruktur Jalan Mendukung KAL-TIM Sebagai Super Hub Ekonomi" 
+                        SEMINAR KETEKNIKAN: "Strategi Infrastruktur Jalan Mendukung KALTIM Sebagai Super Hub Ekonomi"
                     </h1>
 
                     <div class="mt-3 pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-200">
@@ -218,10 +225,10 @@
 
                     <!-- Tombol Submit -->
                     <div class="pt-3">
-                        <button type="submit"
-                            class="w-full py-3.5 px-6 bg-blue-900 hover:bg-blue-950 active:scale-[0.99] text-white font-display font-bold text-sm sm:text-base rounded-xl shadow-lg shadow-blue-900/20 transition flex items-center justify-center gap-2.5 cursor-pointer">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            <span>Kirim Presensi Kehadiran</span>
+                        <button type="submit" id="btn-submit"
+                            class="w-full py-3.5 px-6 bg-blue-900 hover:bg-blue-950 disabled:bg-blue-900/60 disabled:cursor-not-allowed active:scale-[0.99] text-white font-display font-bold text-sm sm:text-base rounded-xl shadow-lg shadow-blue-900/20 transition flex items-center justify-center gap-2.5 cursor-pointer">
+                            <i id="btn-submit-icon" class="fa-solid fa-paper-plane"></i>
+                            <span id="btn-submit-text">Kirim Presensi Kehadiran</span>
                         </button>
                     </div>
                 </form>
@@ -310,13 +317,15 @@
 
     <!-- Footer Sederhana -->
     <footer class="py-6 text-center text-xs text-slate-500 px-4">
-        <p>&copy; <span id="footer-year">2026</span> Panitia Pelaksana Seminar Akademik • Sistem Presensi Peserta</p>
+        <p>&copy; <span id="footer-year">2026</span> Panitia Pelaksana Seminar Akademik • Terhubung Firebase Realtime Database</p>
     </footer>
 
     <!-- JavaScript Application Logic -->
     <script>
         (function () {
-            // Key localStorage terstandarisasi untuk integrasi dengan website rekap/admin terpisah
+            // Konfigurasi Firebase Realtime Database & Backup LocalStorage
+            const FIREBASE_DB_URL = 'https://databasebaru-e57a2-default-rtdb.firebaseio.com';
+            const FIREBASE_NODE_ENDPOINT = `${FIREBASE_DB_URL}/seminar_attendance_records.json`;
             const STORAGE_KEY = 'seminar_attendance_records';
 
             // Referensi Elemen DOM
@@ -333,10 +342,19 @@
             const inputEmail = document.getElementById('email');
             const inputWhatsapp = document.getElementById('whatsapp');
 
+            const btnSubmit = document.getElementById('btn-submit');
+            const btnSubmitIcon = document.getElementById('btn-submit-icon');
+            const btnSubmitText = document.getElementById('btn-submit-text');
+
+            const dbStatusBadge = document.getElementById('db-status-badge');
+            const dbStatusDot = document.getElementById('db-status-dot');
+            const dbStatusText = document.getElementById('db-status-text');
+
             const btnNextParticipant = document.getElementById('btn-next-participant');
             const btnCopyTicket = document.getElementById('btn-copy-ticket');
 
             let currentTicketCode = '';
+            let isSubmitting = false;
 
             // 1. Pembaruan Tanggal & Jam Real-time di Header
             function updateClock() {
@@ -351,31 +369,111 @@
                 document.getElementById('footer-year').textContent = now.getFullYear();
             }
 
-            // 2. Helper Storage (Membaca & Menyimpan ke localStorage)
-            function getStoredRecords() {
+            // 2. Indikator Status Koneksi Firebase Realtime Database
+            function setDatabaseStatus(state, customText) {
+                if (state === 'connected') {
+                    dbStatusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-[11px] font-semibold';
+                    dbStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                    dbStatusText.textContent = customText || 'Terhubung ke Cloud Database';
+                } else if (state === 'syncing') {
+                    dbStatusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 text-[11px] font-semibold';
+                    dbStatusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+                    dbStatusText.textContent = customText || 'Menyimpan ke server...';
+                } else {
+                    dbStatusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-200 text-[11px] font-semibold';
+                    dbStatusDot.className = 'w-2 h-2 rounded-full bg-rose-400';
+                    dbStatusText.textContent = customText || 'Koneksi Cloud Terputus';
+                }
+            }
+
+            async function checkFirebaseConnection() {
+                try {
+                    const response = await fetch(`${FIREBASE_NODE_ENDPOINT}?shallow=true`, {
+                        method: 'GET',
+                        cache: 'no-store'
+                    });
+                    if (response.status === 401 || response.status === 403) {
+                        setDatabaseStatus('error', 'Izin Database Ditolak (Cek Rules)');
+                        return false;
+                    }
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    setDatabaseStatus('connected', 'Terhubung ke Cloud Database');
+                    return true;
+                } catch (err) {
+                    console.warn('Pengecekan awal Firebase gagal:', err);
+                    setDatabaseStatus('error', 'Mode Offline / Gagal Terhubung');
+                    return false;
+                }
+            }
+
+            // 3. Helper Storage (Firebase Realtime Database + Backup LocalStorage)
+            function getLocalBackupRecords() {
                 try {
                     const raw = localStorage.getItem(STORAGE_KEY);
                     const parsed = raw ? JSON.parse(raw) : [];
                     return Array.isArray(parsed) ? parsed : [];
                 } catch (e) {
-                    console.error('Gagal membaca localStorage:', e);
                     return [];
                 }
             }
 
-            function saveRecord(record) {
+            function saveLocalBackupRecord(record) {
                 try {
-                    const records = getStoredRecords();
+                    const records = getLocalBackupRecords();
                     records.unshift(record);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-                    return true;
                 } catch (e) {
-                    showToast('Terjadi kesalahan saat menyimpan presensi di browser.', 'error');
-                    return false;
+                    console.warn('Gagal menyimpan backup localStorage:', e);
                 }
             }
 
-            // 3. Sistem Notifikasi Toast Halus
+            // Ambil seluruh data dari Firebase untuk pengecekan duplikasi NPM
+            async function fetchCloudRecords() {
+                const response = await fetch(FIREBASE_NODE_ENDPOINT, {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('PERMISSION_DENIED');
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP_ERROR_${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data || typeof data !== 'object') {
+                    return [];
+                }
+                return Object.entries(data).map(([firebaseKey, val]) => ({
+                    firebaseKey,
+                    ...(val || {})
+                }));
+            }
+
+            // Simpan data biodata baru ke Firebase Realtime Database menggunakan POST
+            async function pushRecordToFirebase(record) {
+                const response = await fetch(FIREBASE_NODE_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(record)
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('PERMISSION_DENIED');
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP_ERROR_${response.status}`);
+                }
+
+                return await response.json(); // Mengembalikan { name: "-UniqueFirebasePushKey" }
+            }
+
+            // 4. Sistem Notifikasi Toast Halus
             function showToast(message, type = 'success') {
                 const container = document.getElementById('toast-container');
                 const toast = document.createElement('div');
@@ -396,7 +494,7 @@
                 toast.querySelector('button').addEventListener('click', () => removeToast(toast));
                 container.appendChild(toast);
 
-                setTimeout(() => removeToast(toast), 4500);
+                setTimeout(() => removeToast(toast), 5000);
             }
 
             function removeToast(toast) {
@@ -416,7 +514,7 @@
                     .replace(/'/g, '&#039;');
             }
 
-            // 4. Interaksi Input Dinamis & Filter Karakter
+            // 5. Interaksi Input Dinamis & Filter Karakter
             inputProdi.addEventListener('change', () => {
                 clearFieldError('prodi');
                 if (inputProdi.value === 'Lainnya') {
@@ -470,8 +568,20 @@
                 ['nama', 'angkatan', 'npm', 'prodi', 'prodi-lainnya', 'email', 'whatsapp'].forEach(clearFieldError);
             }
 
-            // 5. Validasi Ketat Formulir Presensi
-            function validateForm() {
+            function setSubmitLoading(loading, label = 'Mengirim Presensi...') {
+                isSubmitting = loading;
+                btnSubmit.disabled = loading;
+                if (loading) {
+                    btnSubmitIcon.className = 'fa-solid fa-circle-notch fa-spin';
+                    btnSubmitText.textContent = label;
+                } else {
+                    btnSubmitIcon.className = 'fa-solid fa-paper-plane';
+                    btnSubmitText.textContent = 'Kirim Presensi Kehadiran';
+                }
+            }
+
+            // 6. Validasi Format Input Lokal
+            function validateLocalFields() {
                 clearAllErrors();
                 let isValid = true;
                 let firstInvalidEl = null;
@@ -484,7 +594,7 @@
                 const email = inputEmail.value.trim();
                 const whatsapp = inputWhatsapp.value.trim().replace(/[\s-]/g, '');
 
-                // Validasi Nama Lengkap (minimal 3 karakter)
+                // Validasi Nama Lengkap
                 if (!nama) {
                     setFieldError('nama', 'Nama lengkap wajib diisi.');
                     isValid = false;
@@ -502,7 +612,7 @@
                     firstInvalidEl = firstInvalidEl || inputAngkatan;
                 }
 
-                // Validasi NPM (Hanya angka & anti-duplikasi)
+                // Validasi Format NPM
                 if (!npm) {
                     setFieldError('npm', 'NPM wajib diisi.');
                     isValid = false;
@@ -511,15 +621,6 @@
                     setFieldError('npm', 'NPM harus berupa angka (5–20 digit).');
                     isValid = false;
                     firstInvalidEl = firstInvalidEl || inputNpm;
-                } else {
-                    const existingRecords = getStoredRecords();
-                    const isDuplicate = existingRecords.some(item => String(item.npm) === npm);
-                    if (isDuplicate) {
-                        setFieldError('npm', `NPM ${npm} sudah melakukan presensi sebelumnya.`);
-                        showToast(`Presensi ditolak: NPM ${npm} sudah terdaftar hadir.`, 'error');
-                        isValid = false;
-                        firstInvalidEl = firstInvalidEl || inputNpm;
-                    }
                 }
 
                 // Validasi Program Studi
@@ -545,7 +646,7 @@
                     firstInvalidEl = firstInvalidEl || inputEmail;
                 }
 
-                // Validasi Nomor WhatsApp Indonesia (08... atau 628... atau +628...)
+                // Validasi Nomor WhatsApp Indonesia
                 const waRegex = /^(\+62|62|0)8[1-9][0-9]{7,11}$/;
                 if (!whatsapp) {
                     setFieldError('whatsapp', 'Nomor WhatsApp wajib diisi.');
@@ -564,7 +665,7 @@
                 return isValid;
             }
 
-            // Generator Kode Tiket Unik (Contoh: SEM-2611-8492)
+            // Generator Kode Tiket Unik (Contoh: SEM-191126-8492)
             function generateTicketCode(now) {
                 const yy = String(now.getFullYear()).slice(-2);
                 const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -573,67 +674,114 @@
                 return `SEM-${dd}${mm}${yy}-${rand}`;
             }
 
-            // 6. Proses Submit Form & Transisi ke Layar Bukti Kehadiran
-            form.addEventListener('submit', (e) => {
+            // 7. Proses Submit Form -> Cek Duplikasi di Firebase -> Simpan ke Firebase Realtime Database
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (isSubmitting) return;
 
-                if (!validateForm()) return;
+                if (!validateLocalFields()) return;
 
-                const now = new Date();
-                const ticketCode = generateTicketCode(now);
-                const waktuFormatted = now.toLocaleDateString('id-ID', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric'
-                }) + ' • ' + now.toLocaleTimeString('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
+                const npmValue = inputNpm.value.trim();
 
-                const finalProdi = inputProdi.value === 'Lainnya'
-                    ? inputProdiLainnya.value.trim()
-                    : inputProdi.value.trim();
+                setSubmitLoading(true, 'Memeriksa data di server...');
+                setDatabaseStatus('syncing', 'Memeriksa NPM di cloud...');
 
-                // Normalisasi nomor WA ke format standar 08...
-                let cleanWa = inputWhatsapp.value.trim().replace(/[\s-]/g, '');
-                if (cleanWa.startsWith('+62')) cleanWa = '0' + cleanWa.slice(3);
-                else if (cleanWa.startsWith('62')) cleanWa = '0' + cleanWa.slice(2);
+                try {
+                    // Langkah A: Cek duplikasi NPM langsung ke Firebase Realtime Database
+                    const cloudRecords = await fetchCloudRecords();
+                    const isDuplicateInCloud = cloudRecords.some(item => String(item.npm || '').trim() === npmValue);
 
-                const newRecord = {
-                    id: ticketCode,
-                    ticketCode: ticketCode,
-                    timestamp: now.toISOString(),
-                    waktu: waktuFormatted,
-                    nama: inputNama.value.trim(),
-                    angkatan: inputAngkatan.value.trim(),
-                    npm: inputNpm.value.trim(),
-                    prodi: finalProdi,
-                    email: inputEmail.value.trim().toLowerCase(),
-                    whatsapp: cleanWa
-                };
+                    if (isDuplicateInCloud) {
+                        setDatabaseStatus('connected', 'Terhubung ke Cloud Database');
+                        setSubmitLoading(false);
+                        setFieldError('npm', `NPM ${npmValue} sudah tercatat hadir di database seminar.`);
+                        showToast(`Presensi ditolak: NPM ${npmValue} sudah terdaftar hadir.`, 'error');
+                        inputNpm.focus();
+                        return;
+                    }
 
-                if (!saveRecord(newRecord)) return;
+                    // Langkah B: Susun objek biodata peserta
+                    setSubmitLoading(true, 'Menyimpan ke database...');
+                    setDatabaseStatus('syncing', 'Menyimpan ke server...');
 
-                // Tampilkan data pada Bukti Kehadiran Digital
-                currentTicketCode = ticketCode;
-                document.getElementById('receipt-ticket').textContent = newRecord.ticketCode;
-                document.getElementById('receipt-nama').textContent = newRecord.nama;
-                document.getElementById('receipt-npm-angkatan').textContent = `${newRecord.npm} (Angkatan ${newRecord.angkatan})`;
-                document.getElementById('receipt-prodi').textContent = newRecord.prodi;
-                document.getElementById('receipt-email').textContent = newRecord.email;
-                document.getElementById('receipt-whatsapp').textContent = newRecord.whatsapp;
-                document.getElementById('receipt-waktu').textContent = newRecord.waktu;
+                    const now = new Date();
+                    const ticketCode = generateTicketCode(now);
+                    const waktuFormatted = now.toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                    }) + ' • ' + now.toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
 
-                // Beralih tampilan dari Form ke Bukti Presensi
-                formView.classList.add('hidden');
-                receiptView.classList.remove('hidden');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                    const finalProdi = inputProdi.value === 'Lainnya'
+                        ? inputProdiLainnya.value.trim()
+                        : inputProdi.value.trim();
 
-                showToast('Presensi kehadiran Anda berhasil dicatat!', 'success');
+                    // Normalisasi nomor WA ke format standar 08...
+                    let cleanWa = inputWhatsapp.value.trim().replace(/[\s-]/g, '');
+                    if (cleanWa.startsWith('+62')) cleanWa = '0' + cleanWa.slice(3);
+                    else if (cleanWa.startsWith('62')) cleanWa = '0' + cleanWa.slice(2);
+
+                    const newRecord = {
+                        id: ticketCode,
+                        ticketCode: ticketCode,
+                        timestamp: now.toISOString(),
+                        waktu: waktuFormatted,
+                        nama: inputNama.value.trim(),
+                        angkatan: inputAngkatan.value.trim(),
+                        npm: npmValue,
+                        prodi: finalProdi,
+                        email: inputEmail.value.trim().toLowerCase(),
+                        whatsapp: cleanWa
+                    };
+
+                    // Langkah C: Kirim POST ke Firebase Realtime Database
+                    const firebaseRes = await pushRecordToFirebase(newRecord);
+                    if (firebaseRes && firebaseRes.name) {
+                        newRecord.firebaseKey = firebaseRes.name;
+                    }
+
+                    // Simpan backup ke localStorage
+                    saveLocalBackupRecord(newRecord);
+
+                    setDatabaseStatus('connected', 'Tersimpan di Cloud Database');
+                    setSubmitLoading(false);
+
+                    // Tampilkan data pada Bukti Kehadiran Digital
+                    currentTicketCode = ticketCode;
+                    document.getElementById('receipt-ticket').textContent = newRecord.ticketCode;
+                    document.getElementById('receipt-nama').textContent = newRecord.nama;
+                    document.getElementById('receipt-npm-angkatan').textContent = `${newRecord.npm} (Angkatan ${newRecord.angkatan})`;
+                    document.getElementById('receipt-prodi').textContent = newRecord.prodi;
+                    document.getElementById('receipt-email').textContent = newRecord.email;
+                    document.getElementById('receipt-whatsapp').textContent = newRecord.whatsapp;
+                    document.getElementById('receipt-waktu').textContent = newRecord.waktu;
+
+                    // Beralih tampilan dari Form ke Bukti Presensi
+                    formView.classList.add('hidden');
+                    receiptView.classList.remove('hidden');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                    showToast('Presensi berhasil disimpan ke Firebase Realtime Database!', 'success');
+
+                } catch (err) {
+                    console.error('Firebase Error:', err);
+                    setSubmitLoading(false);
+
+                    if (err && err.message === 'PERMISSION_DENIED') {
+                        setDatabaseStatus('error', 'Akses Database Ditolak');
+                        showToast('Akses Firebase ditolak. Pastikan Rules Realtime Database diatur ke ".read": true dan ".write": true.', 'error');
+                    } else {
+                        setDatabaseStatus('error', 'Gagal Terhubung ke Server');
+                        showToast('Gagal terhubung ke Firebase. Periksa koneksi internet Anda lalu coba kirim ulang.', 'error');
+                    }
+                }
             });
 
-            // 7. Salin Kode Tiket (Menggunakan execCommand agar aman di iFrame)
+            // 8. Salin Kode Tiket (Menggunakan execCommand agar aman di iFrame)
             btnCopyTicket.addEventListener('click', () => {
                 if (!currentTicketCode) return;
                 const tempInput = document.createElement('input');
@@ -649,7 +797,7 @@
                 document.body.removeChild(tempInput);
             });
 
-            // 8. Tombol "Isi Presensi Peserta Lain"
+            // 9. Tombol "Isi Presensi Peserta Lain"
             btnNextParticipant.addEventListener('click', () => {
                 form.reset();
                 wrapperProdiLainnya.classList.add('hidden');
@@ -666,6 +814,7 @@
             window.addEventListener('DOMContentLoaded', () => {
                 updateClock();
                 setInterval(updateClock, 1000);
+                checkFirebaseConnection();
             });
         })();
     </script>
