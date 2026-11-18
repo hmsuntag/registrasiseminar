@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presensi Kehadiran Peserta Seminar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-blue-900 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 right-4 left-4 sm:left-auto z-50 flex flex-col gap-2.5 sm:max-w-sm w-auto pointer-events-none"></div>
+
+    <!-- Dekorasi Latar Belakang Atas -->
+    <div class="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 h-64 sm:h-72 w-full absolute top-0 left-0 -z-10 border-b-4 border-amber-500"></div>
+
+    <!-- Main Container: Terpusat & Mobile-First -->
+    <main class="w-full max-w-xl mx-auto px-4 pt-8 pb-12 sm:pt-12 flex-grow flex flex-col justify-center">
+        
+        <!-- Kartu Utama (Header Acara + Form / Bukti Presensi) -->
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-900/10 border border-slate-200/80 overflow-hidden">
+            
+            <!-- Header Acara Seminar -->
+            <div class="bg-gradient-to-r from-slate-900 to-blue-950 px-6 py-7 sm:px-8 sm:py-8 text-white relative overflow-hidden">
+                <!-- Aksen Geometris Halus -->
+                <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-amber-500/10 blur-2xl pointer-events-none"></div>
+                <div class="absolute -left-10 -bottom-10 w-32 h-32 rounded-full bg-blue-500/10 blur-xl pointer-events-none"></div>
+
+                <div class="relative z-10">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[11px] font-bold tracking-wider uppercase">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Formulir Presensi Resmi
+                        </span>
+                        <span id="current-time" class="font-mono text-xs text-blue-200 bg-white/10 px-2.5 py-1 rounded-lg">
+                            --:--:--
+                        </span>
+                    </div>
+
+                    <h1 class="font-display text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-snug">
+                        Seminar Nasional: Transformasi Digital & Inovasi Riset di Era AI
+                    </h1>
+
+                    <div class="mt-3 pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-200">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-calendar-check text-amber-400"></i>
+                            <span id="current-date" class="font-medium text-white">Memuat tanggal...</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-blue-300">
+                            <i class="fa-solid fa-location-dot text-amber-400"></i>
+                            <span>Auditorium Utama</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATE 1: FORMULIR PRESENSI -->
+            <div id="form-view" class="p-6 sm:p-8">
+                <div class="mb-6">
+                    <h2 class="font-display font-bold text-lg text-slate-900">Isi Data Kehadiran</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                        Pastikan data yang dimasukkan sesuai dengan identitas akademik untuk keperluan penerbitan e-sertifikat.
+                    </p>
+                </div>
+
+                <form id="attendance-form" class="space-y-4" novalidate>
+                    <!-- Nama Lengkap -->
+                    <div>
+                        <label for="nama" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Nama Lengkap <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                <i class="fa-regular fa-user"></i>
+                            </span>
+                            <input type="text" id="nama" name="nama" autocomplete="name" placeholder="Masukkan nama lengkap beserta gelar (jika ada)" required
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                        </div>
+                        <p id="err-nama" class="text-xs text-red-600 mt-1.5 hidden flex items-center gap-1"></p>
+                    </div>
+
+                    <!-- Angkatan & NPM (2 Kolom di layar >= sm) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Angkatan -->
+                        <div>
+                            <label for="angkatan" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                Angkatan <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                    <i class="fa-regular fa-calendar"></i>
+                                </span>
+                                <select id="angkatan" name="angkatan" required
+                                    class="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition appearance-none">
+                                    <option value="">Pilih Tahun</option>
+                                    <option value="2026">2026</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2020">2020</option>
+                                </select>
+                                <span class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                                </span>
+                            </div>
+                            <p id="err-angkatan" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                        </div>
+
+                        <!-- NPM -->
+                        <div>
+                            <label for="npm" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                NPM <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                    <i class="fa-solid fa-id-card"></i>
+                                </span>
+                                <input type="text" id="npm" name="npm" inputmode="numeric" placeholder="Contoh: 2311010045" required
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                            </div>
+                            <p id="err-npm" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                        </div>
+                    </div>
+
+                    <!-- Program Studi -->
+                    <div>
+                        <label for="prodi" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Program Studi (Prodi) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                <i class="fa-solid fa-graduation-cap"></i>
+                            </span>
+                            <select id="prodi" name="prodi" required
+                                class="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition appearance-none">
+                                <option value="">-- Pilih Program Studi --</option>
+                                <option value="Teknik Informatika">Teknik Informatika</option>
+                                <option value="Sistem Informasi">Sistem Informasi</option>
+                                <option value="Teknik Sipil">Teknik Sipil</option>
+                                <option value="Teknik Elektro">Teknik Elektro</option>
+                                <option value="Teknik Mesin">Teknik Mesin</option>
+                                <option value="Manajemen">Manajemen</option>
+                                <option value="Akuntansi">Akuntansi</option>
+                                <option value="Ilmu Hukum">Ilmu Hukum</option>
+                                <option value="Psikologi">Psikologi</option>
+                                <option value="Ilmu Komunikasi">Ilmu Komunikasi</option>
+                                <option value="Lainnya">Lainnya (Tulis Manual)</option>
+                            </select>
+                            <span class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </span>
+                        </div>
+                        <p id="err-prodi" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                    </div>
+
+                    <!-- Input Prodi Manual (Kondisional saat memilih 'Lainnya') -->
+                    <div id="prodi-lainnya-wrapper" class="hidden">
+                        <label for="prodi-lainnya" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Nama Program Studi <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="prodi-lainnya" name="prodi-lainnya" placeholder="Tuliskan nama program studi Anda"
+                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                        <p id="err-prodi-lainnya" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Alamat Email Aktif <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                <i class="fa-regular fa-envelope"></i>
+                            </span>
+                            <input type="email" id="email" name="email" autocomplete="email" placeholder="nama@mahasiswa.ac.id" required
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                        </div>
+                        <p id="err-email" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                    </div>
+
+                    <!-- Nomor WhatsApp -->
+                    <div>
+                        <label for="whatsapp" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Nomor WhatsApp <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-emerald-600 pointer-events-none">
+                                <i class="fa-brands fa-whatsapp text-base"></i>
+                            </span>
+                            <input type="tel" id="whatsapp" name="whatsapp" inputmode="tel" autocomplete="tel" placeholder="Contoh: 081234567890" required
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1">Gunakan nomor aktif Indonesia (diawali 08 atau 628).</p>
+                        <p id="err-whatsapp" class="text-xs text-red-600 mt-1 hidden"></p>
+                    </div>
+
+                    <!-- Tombol Submit -->
+                    <div class="pt-3">
+                        <button type="submit"
+                            class="w-full py-3.5 px-6 bg-blue-900 hover:bg-blue-950 active:scale-[0.99] text-white font-display font-bold text-sm sm:text-base rounded-xl shadow-lg shadow-blue-900/20 transition flex items-center justify-center gap-2.5 cursor-pointer">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Kirim Presensi Kehadiran</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- STATE 2: BUKTI KEHADIRAN DIGITAL (Muncul setelah submit berhasil) -->
+            <div id="receipt-view" class="hidden p-6 sm:p-8">
+                <!-- Banner Status Sukses -->
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <span class="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold uppercase tracking-wider mb-2">
+                        Kehadiran Terkonfirmasi
+                    </span>
+                    <h2 class="font-display font-extrabold text-xl sm:text-2xl text-slate-900">
+                        Bukti Kehadiran Seminar
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                        Simpan atau tangkap layar (screenshot) kartu ini sebagai bukti sah kehadiran Anda.
+                    </p>
+                </div>
+
+                <!-- Kartu Tiket / Bukti Digital -->
+                <div class="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 p-5 sm:p-6 relative">
+                    <!-- Kode Tiket Unik -->
+                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200">
+                        <div>
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Kode Tiket Presensi</span>
+                            <span id="receipt-ticket" class="font-mono font-extrabold text-base sm:text-lg text-blue-900 tracking-wide">
+                                SEM-000000
+                            </span>
+                        </div>
+                        <button type="button" id="btn-copy-ticket"
+                            class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                            title="Salin Kode Tiket">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>Salin ID</span>
+                        </button>
+                    </div>
+
+                    <!-- Rincian Data Peserta -->
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">Nama Lengkap</dt>
+                            <dd id="receipt-nama" class="font-bold text-slate-900 sm:text-right">-</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">NPM / Angkatan</dt>
+                            <dd id="receipt-npm-angkatan" class="font-semibold text-slate-800 sm:text-right">-</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">Program Studi</dt>
+                            <dd id="receipt-prodi" class="font-semibold text-slate-800 sm:text-right">-</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">Email</dt>
+                            <dd id="receipt-email" class="font-medium text-slate-700 sm:text-right break-all">-</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">Nomor WhatsApp</dt>
+                            <dd id="receipt-whatsapp" class="font-medium text-slate-700 sm:text-right">-</dd>
+                        </div>
+                        <div class="pt-3 mt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fa-regular fa-clock text-emerald-600"></i>
+                                <span>Waktu Presensi</span>
+                            </dt>
+                            <dd id="receipt-waktu" class="font-mono text-xs sm:text-sm font-bold text-emerald-700 sm:text-right">-</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Tombol Aksi Setelah Presensi -->
+                <div class="mt-6">
+                    <button type="button" id="btn-next-participant"
+                        class="w-full py-3 px-5 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-display font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Isi Presensi Peserta Lain</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer Sederhana -->
+    <footer class="py-6 text-center text-xs text-slate-500 px-4">
+        <p>&copy; <span id="footer-year">2026</span> Panitia Pelaksana Seminar Akademik • Sistem Presensi Peserta</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        (function () {
+            // Key localStorage terstandarisasi untuk integrasi dengan website rekap/admin terpisah
+            const STORAGE_KEY = 'seminar_attendance_records';
+
+            // Referensi Elemen DOM
+            const formView = document.getElementById('form-view');
+            const receiptView = document.getElementById('receipt-view');
+            const form = document.getElementById('attendance-form');
+
+            const inputNama = document.getElementById('nama');
+            const inputAngkatan = document.getElementById('angkatan');
+            const inputNpm = document.getElementById('npm');
+            const inputProdi = document.getElementById('prodi');
+            const wrapperProdiLainnya = document.getElementById('prodi-lainnya-wrapper');
+            const inputProdiLainnya = document.getElementById('prodi-lainnya');
+            const inputEmail = document.getElementById('email');
+            const inputWhatsapp = document.getElementById('whatsapp');
+
+            const btnNextParticipant = document.getElementById('btn-next-participant');
+            const btnCopyTicket = document.getElementById('btn-copy-ticket');
+
+            let currentTicketCode = '';
+
+            // 1. Pembaruan Tanggal & Jam Real-time di Header
+            function updateClock() {
+                const now = new Date();
+                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('current-date').textContent = now.toLocaleDateString('id-ID', dateOptions);
+                
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+                document.getElementById('footer-year').textContent = now.getFullYear();
+            }
+
+            // 2. Helper Storage (Membaca & Menyimpan ke localStorage)
+            function getStoredRecords() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    const parsed = raw ? JSON.parse(raw) : [];
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    console.error('Gagal membaca localStorage:', e);
+                    return [];
+                }
+            }
+
+            function saveRecord(record) {
+                try {
+                    const records = getStoredRecords();
+                    records.unshift(record);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                    return true;
+                } catch (e) {
+                    showToast('Terjadi kesalahan saat menyimpan presensi di browser.', 'error');
+                    return false;
+                }
+            }
+
+            // 3. Sistem Notifikasi Toast Halus
+            function showToast(message, type = 'success') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                const isSuccess = type === 'success';
+                const bgClass = isSuccess ? 'bg-slate-900 border-emerald-500' : 'bg-red-950 border-red-500';
+                const iconClass = isSuccess ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation text-red-400';
+
+                toast.className = `pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl text-white border-l-4 shadow-xl transition-all duration-300 ${bgClass}`;
+                toast.innerHTML = `
+                    <i class="fa-solid ${iconClass} text-base mt-0.5 shrink-0"></i>
+                    <div class="text-xs sm:text-sm font-medium leading-snug flex-1">${escapeHTML(message)}</div>
+                    <button type="button" class="text-slate-400 hover:text-white ml-1" aria-label="Tutup">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+
+                toast.querySelector('button').addEventListener('click', () => removeToast(toast));
+                container.appendChild(toast);
+
+                setTimeout(() => removeToast(toast), 4500);
+            }
+
+            function removeToast(toast) {
+                if (!toast || !toast.parentElement) return;
+                toast.classList.add('opacity-0', 'translate-x-4');
+                setTimeout(() => {
+                    if (toast.parentElement) toast.parentElement.removeChild(toast);
+                }, 300);
+            }
+
+            function escapeHTML(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            // 4. Interaksi Input Dinamis & Filter Karakter
+            inputProdi.addEventListener('change', () => {
+                clearFieldError('prodi');
+                if (inputProdi.value === 'Lainnya') {
+                    wrapperProdiLainnya.classList.remove('hidden');
+                    inputProdiLainnya.focus();
+                } else {
+                    wrapperProdiLainnya.classList.add('hidden');
+                    inputProdiLainnya.value = '';
+                    clearFieldError('prodi-lainnya');
+                }
+            });
+
+            // Pastikan input NPM hanya menerima angka
+            inputNpm.addEventListener('input', () => {
+                inputNpm.value = inputNpm.value.replace(/\D/g, '');
+                clearFieldError('npm');
+            });
+
+            // Hapus error saat pengguna memperbaiki input
+            [inputNama, inputAngkatan, inputProdiLainnya, inputEmail, inputWhatsapp].forEach(el => {
+                el.addEventListener('input', () => clearFieldError(el.id));
+            });
+
+            function setFieldError(fieldId, message) {
+                const errEl = document.getElementById(`err-${fieldId}`);
+                const inputEl = document.getElementById(fieldId);
+                if (errEl) {
+                    errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i>${escapeHTML(message)}`;
+                    errEl.classList.remove('hidden');
+                }
+                if (inputEl) {
+                    inputEl.classList.add('border-red-500', 'focus:ring-red-500');
+                    inputEl.classList.remove('border-slate-300', 'focus:ring-blue-700');
+                }
+            }
+
+            function clearFieldError(fieldId) {
+                const errEl = document.getElementById(`err-${fieldId}`);
+                const inputEl = document.getElementById(fieldId);
+                if (errEl) {
+                    errEl.textContent = '';
+                    errEl.classList.add('hidden');
+                }
+                if (inputEl) {
+                    inputEl.classList.remove('border-red-500', 'focus:ring-red-500');
+                    inputEl.classList.add('border-slate-300', 'focus:ring-blue-700');
+                }
+            }
+
+            function clearAllErrors() {
+                ['nama', 'angkatan', 'npm', 'prodi', 'prodi-lainnya', 'email', 'whatsapp'].forEach(clearFieldError);
+            }
+
+            // 5. Validasi Ketat Formulir Presensi
+            function validateForm() {
+                clearAllErrors();
+                let isValid = true;
+                let firstInvalidEl = null;
+
+                const nama = inputNama.value.trim();
+                const angkatan = inputAngkatan.value.trim();
+                const npm = inputNpm.value.trim();
+                const prodiSelect = inputProdi.value.trim();
+                const prodiCustom = inputProdiLainnya.value.trim();
+                const email = inputEmail.value.trim();
+                const whatsapp = inputWhatsapp.value.trim().replace(/[\s-]/g, '');
+
+                // Validasi Nama Lengkap (minimal 3 karakter)
+                if (!nama) {
+                    setFieldError('nama', 'Nama lengkap wajib diisi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputNama;
+                } else if (nama.length < 3) {
+                    setFieldError('nama', 'Nama lengkap minimal terdiri dari 3 karakter.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputNama;
+                }
+
+                // Validasi Angkatan
+                if (!angkatan) {
+                    setFieldError('angkatan', 'Silakan pilih tahun angkatan.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputAngkatan;
+                }
+
+                // Validasi NPM (Hanya angka & anti-duplikasi)
+                if (!npm) {
+                    setFieldError('npm', 'NPM wajib diisi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputNpm;
+                } else if (!/^\d{5,20}$/.test(npm)) {
+                    setFieldError('npm', 'NPM harus berupa angka (5–20 digit).');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputNpm;
+                } else {
+                    const existingRecords = getStoredRecords();
+                    const isDuplicate = existingRecords.some(item => String(item.npm) === npm);
+                    if (isDuplicate) {
+                        setFieldError('npm', `NPM ${npm} sudah melakukan presensi sebelumnya.`);
+                        showToast(`Presensi ditolak: NPM ${npm} sudah terdaftar hadir.`, 'error');
+                        isValid = false;
+                        firstInvalidEl = firstInvalidEl || inputNpm;
+                    }
+                }
+
+                // Validasi Program Studi
+                if (!prodiSelect) {
+                    setFieldError('prodi', 'Silakan pilih program studi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputProdi;
+                } else if (prodiSelect === 'Lainnya' && !prodiCustom) {
+                    setFieldError('prodi-lainnya', 'Tuliskan nama program studi Anda.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputProdiLainnya;
+                }
+
+                // Validasi Email
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+                if (!email) {
+                    setFieldError('email', 'Alamat email wajib diisi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputEmail;
+                } else if (!emailRegex.test(email)) {
+                    setFieldError('email', 'Format email tidak valid (contoh: nama@domain.com).');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputEmail;
+                }
+
+                // Validasi Nomor WhatsApp Indonesia (08... atau 628... atau +628...)
+                const waRegex = /^(\+62|62|0)8[1-9][0-9]{7,11}$/;
+                if (!whatsapp) {
+                    setFieldError('whatsapp', 'Nomor WhatsApp wajib diisi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputWhatsapp;
+                } else if (!waRegex.test(whatsapp)) {
+                    setFieldError('whatsapp', 'Masukkan nomor WhatsApp Indonesia yang valid (08... atau 628...).');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputWhatsapp;
+                }
+
+                if (firstInvalidEl) {
+                    firstInvalidEl.focus();
+                }
+
+                return isValid;
+            }
+
+            // Generator Kode Tiket Unik (Contoh: SEM-2611-8492)
+            function generateTicketCode(now) {
+                const yy = String(now.getFullYear()).slice(-2);
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const rand = Math.floor(1000 + Math.random() * 9000);
+                return `SEM-${dd}${mm}${yy}-${rand}`;
+            }
+
+            // 6. Proses Submit Form & Transisi ke Layar Bukti Kehadiran
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                if (!validateForm()) return;
+
+                const now = new Date();
+                const ticketCode = generateTicketCode(now);
+                const waktuFormatted = now.toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                }) + ' • ' + now.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+
+                const finalProdi = inputProdi.value === 'Lainnya'
+                    ? inputProdiLainnya.value.trim()
+                    : inputProdi.value.trim();
+
+                // Normalisasi nomor WA ke format standar 08...
+                let cleanWa = inputWhatsapp.value.trim().replace(/[\s-]/g, '');
+                if (cleanWa.startsWith('+62')) cleanWa = '0' + cleanWa.slice(3);
+                else if (cleanWa.startsWith('62')) cleanWa = '0' + cleanWa.slice(2);
+
+                const newRecord = {
+                    id: ticketCode,
+                    ticketCode: ticketCode,
+                    timestamp: now.toISOString(),
+                    waktu: waktuFormatted,
+                    nama: inputNama.value.trim(),
+                    angkatan: inputAngkatan.value.trim(),
+                    npm: inputNpm.value.trim(),
+                    prodi: finalProdi,
+                    email: inputEmail.value.trim().toLowerCase(),
+                    whatsapp: cleanWa
+                };
+
+                if (!saveRecord(newRecord)) return;
+
+                // Tampilkan data pada Bukti Kehadiran Digital
+                currentTicketCode = ticketCode;
+                document.getElementById('receipt-ticket').textContent = newRecord.ticketCode;
+                document.getElementById('receipt-nama').textContent = newRecord.nama;
+                document.getElementById('receipt-npm-angkatan').textContent = `${newRecord.npm} (Angkatan ${newRecord.angkatan})`;
+                document.getElementById('receipt-prodi').textContent = newRecord.prodi;
+                document.getElementById('receipt-email').textContent = newRecord.email;
+                document.getElementById('receipt-whatsapp').textContent = newRecord.whatsapp;
+                document.getElementById('receipt-waktu').textContent = newRecord.waktu;
+
+                // Beralih tampilan dari Form ke Bukti Presensi
+                formView.classList.add('hidden');
+                receiptView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                showToast('Presensi kehadiran Anda berhasil dicatat!', 'success');
+            });
+
+            // 7. Salin Kode Tiket (Menggunakan execCommand agar aman di iFrame)
+            btnCopyTicket.addEventListener('click', () => {
+                if (!currentTicketCode) return;
+                const tempInput = document.createElement('input');
+                tempInput.value = currentTicketCode;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                    showToast(`Kode tiket ${currentTicketCode} disalin ke clipboard.`, 'success');
+                } catch (err) {
+                    showToast('Gagal menyalin kode tiket.', 'error');
+                }
+                document.body.removeChild(tempInput);
+            });
+
+            // 8. Tombol "Isi Presensi Peserta Lain"
+            btnNextParticipant.addEventListener('click', () => {
+                form.reset();
+                wrapperProdiLainnya.classList.add('hidden');
+                clearAllErrors();
+                currentTicketCode = '';
+
+                receiptView.classList.add('hidden');
+                formView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                inputNama.focus();
+            });
+
+            // Inisialisasi saat halaman siap
+            window.addEventListener('DOMContentLoaded', () => {
+                updateClock();
+                setInterval(updateClock, 1000);
+            });
+        })();
+    </script>
+</body>
+</html>
