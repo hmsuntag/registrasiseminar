@@ -185,6 +185,21 @@
                         <p id="err-prodi-lainnya" class="text-xs text-red-600 mt-1.5 hidden"></p>
                     </div>
 
+                    <!-- Instansi -->
+                    <div>
+                        <label for="instansi" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Instansi <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
+                                <i class="fa-regular fa-building"></i>
+                            </span>
+                            <input type="text" id="instansi" name="instansi" autocomplete="organization" placeholder="CONTOH: Universitas 17 Agustus 1945" required
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent transition">
+                        </div>
+                        <p id="err-instansi" class="text-xs text-red-600 mt-1.5 hidden"></p>
+                    </div>
+
                     <!-- Email -->
                     <div>
                         <label for="email" class="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -278,6 +293,10 @@
                             <dd id="receipt-prodi" class="font-semibold text-slate-800 sm:text-right">-</dd>
                         </div>
                         <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                            <dt class="text-slate-500 text-xs sm:text-sm">Instansi</dt>
+                            <dd id="receipt-instansi" class="font-semibold text-slate-800 sm:text-right">-</dd>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-0.5">
                             <dt class="text-slate-500 text-xs sm:text-sm">Email</dt>
                             <dd id="receipt-email" class="font-medium text-slate-700 sm:text-right break-all">-</dd>
                         </div>
@@ -332,6 +351,7 @@
             const inputProdi = document.getElementById('prodi');
             const wrapperProdiLainnya = document.getElementById('prodi-lainnya-wrapper');
             const inputProdiLainnya = document.getElementById('prodi-lainnya');
+            const inputInstansi = document.getElementById('instansi');
             const inputEmail = document.getElementById('email');
             const inputWhatsapp = document.getElementById('whatsapp');
 
@@ -527,7 +547,7 @@
             });
 
             // Hapus error saat pengguna memperbaiki input
-            [inputNama, inputAngkatan, inputProdiLainnya, inputEmail, inputWhatsapp].forEach(el => {
+            [inputNama, inputAngkatan, inputProdiLainnya, inputInstansi, inputEmail, inputWhatsapp].forEach(el => {
                 el.addEventListener('input', () => clearFieldError(el.id));
             });
 
@@ -558,7 +578,7 @@
             }
 
             function clearAllErrors() {
-                ['nama', 'angkatan', 'npm', 'prodi', 'prodi-lainnya', 'email', 'whatsapp'].forEach(clearFieldError);
+                ['nama', 'angkatan', 'npm', 'prodi', 'prodi-lainnya', 'instansi', 'email', 'whatsapp'].forEach(clearFieldError);
             }
 
             function setSubmitLoading(loading, label = 'Mengirim Presensi...') {
@@ -625,6 +645,13 @@
                     setFieldError('prodi-lainnya', 'Tuliskan nama program studi Anda.');
                     isValid = false;
                     firstInvalidEl = firstInvalidEl || inputProdiLainnya;
+                }
+
+                // Validasi Instansi
+                if (!inputInstansi.value.trim()) {
+                    setFieldError('instansi', 'Nama instansi wajib diisi.');
+                    isValid = false;
+                    firstInvalidEl = firstInvalidEl || inputInstansi;
                 }
 
                 // Validasi Email
@@ -727,6 +754,7 @@
                         angkatan: inputAngkatan.value.trim(),
                         npm: npmValue,
                         prodi: finalProdi,
+                        instansi: inputInstansi.value.trim(),
                         email: inputEmail.value.trim().toLowerCase(),
                         whatsapp: cleanWa
                     };
@@ -749,6 +777,7 @@
                     document.getElementById('receipt-nama').textContent = newRecord.nama;
                     document.getElementById('receipt-npm-angkatan').textContent = `${newRecord.npm} (Angkatan ${newRecord.angkatan})`;
                     document.getElementById('receipt-prodi').textContent = newRecord.prodi;
+                    document.getElementById('receipt-instansi').textContent = newRecord.instansi;
                     document.getElementById('receipt-email').textContent = newRecord.email;
                     document.getElementById('receipt-whatsapp').textContent = newRecord.whatsapp;
                     document.getElementById('receipt-waktu').textContent = newRecord.waktu;
